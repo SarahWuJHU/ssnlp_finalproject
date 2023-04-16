@@ -3,6 +3,7 @@ import torch.nn as nn
 from transformers import PreTrainedModel, PretrainedConfig, BertModel, BertConfig
 from transformers import BertGenerationEncoder, BertGenerationDecoder, BertGenerationConfig
 from transformers import BertTokenizer # tested with this, might need a custom tokenizer for the actual inputs
+from transformers import BertForSequenceClassification
 from transformers import EncoderDecoderModel
 
 import warnings
@@ -32,14 +33,15 @@ class TextAndEmotionEncoder(BertModel):
     def forward(self, input, attention_mask=None, **kwargs):
         #import pdb; pdb.set_trace()
         input_ids, emotion_label = input
-        outputs_text = self.base_encoder(input_ids=input_ids, attention_mask=attention_mask)[0]
+        outputs_base = self.base_encoder(input_ids=input_ids, attention_mask=attention_mask)
+        outputs_text = outputs_base[0]
         
         outputs_emotion = self.emotion_embedding(emotion_label)
         for linear in self.linears:
             outputs_emotion =  linear(outputs_emotion)
         output = torch.cat((outputs_text, outputs_emotion), dim=1)
-
-        return output
+        outputs_base["last_hidden_state"] = output
+        return outputs_base
 
 
  # testing the encoder
@@ -49,9 +51,22 @@ tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 input_ids = tokenizer("This is a long article to summarize", add_special_tokens=False, return_tensors="pt").input_ids # random sample text
 emotion_label = torch.tensor([1]).unsqueeze(0) # index of whatever the emotion is (0, 1, 2, etc.)
 x = encoder((input_ids, emotion_label))  # input_ids.shape should be batch_size x seq_len, emotion_label.shape should be batch_size x 1
-print(x.shape)
+print(x[0].shape)
 
 # creating encoder-decoder model
 base_decoder = BertGenerationDecoder.from_pretrained('bert-base-uncased', add_cross_attention=True, is_decoder=True) # tested with bert-base-uncased, should probably be bert-large-uncased in actual training
 input_reconstructor = EncoderDecoderModel(encoder=encoder, decoder=base_decoder)
-y = input_reconstructor(input=(input_ids, emotion_label), decoder_input_ids=input_ids)
+
+# testing the encoder-decoder model
+y = input_reconstructor(input=(input_ids, emotion_label), decoder_input_ids=input_ids) # this is how inputs need to be given to the encoder-decoder model
+print(y[0].shape)
+print(y[0].argmax(dim=-1))
+
+base_decoder_2 = BertGenerationDecoder.from_pretrained('bert-base-uncased', add_cross_attention=True, is_decoder=True) # tested with bert-base-uncased, should probably be bert-large-uncased in actual training
+generator = EncoderDecoderModel(encoder=encoder, decoder=base_decoder_2)
+
+# testing the discriminator
+y = generator(input=(input_ids, emotion_label), decoder_input_ids=input_ids)["logits"].argmax(dim=-1)
+discriminator = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=2)
+print(discriminator(y))
+print(discriminator(input_ids))
