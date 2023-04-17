@@ -8,6 +8,7 @@ from transformers import get_scheduler
 from transformers import BertTokenizer
 from transformers import BertForSequenceClassification
 from transformers import EncoderDecoderModel
+from scipy.io import savemat
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -96,6 +97,7 @@ NUM_EPOCHS = 100
 LR = 1e4  # learning rate
 BETA1 = 0.5
 NUM_TRAINING_POINTS = 1000
+SAVE_FILE = "epochs.mat"
 
 criterion = nn.BCELoss()
 # Establish convention for real and fake labels during training
@@ -219,6 +221,7 @@ for epoch in range(NUM_EPOCHS):
         D_losses.append(errD.item())
         E_losses.append(errE.item())
 
+savemat(SAVE_FILE, {'generator_loss': G_losses, 'discriminator_loss': D_losses, 'reconstruction_loss': E_losses})
 # input_ids.shape should be batch_size x seq_len, emotion_label.shape should be batch_size x 1
 x = encoder((input_ids, emotion_label))
 print(x[0].shape)
