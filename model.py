@@ -168,7 +168,7 @@ training_emo_label = emo_data['train']['context'][:len(
 embeddings = gensim.downloader.load('glove-twitter-50')
 
 # Creating DataLoader
-MAX_LEN = 64
+MAX_LEN = 192
 MODEL_NAME = 'prajjwal1/bert-small'
 BATCH_SIZE = 4
 text_tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
