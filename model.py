@@ -169,7 +169,7 @@ embeddings = gensim.downloader.load('glove-twitter-50')
 
 # Creating DataLoader
 MAX_LEN = 128
-MODEL_NAME = 'bert-base-uncased'
+MODEL_NAME = 'distilbert-base-uncased'
 BATCH_SIZE = 32
 text_tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
 train_dataset = EmotionPlainDataset(
@@ -215,7 +215,7 @@ discriminator = BertForSequenceClassification.from_pretrained(
 #######################################
 ########### Model Training ############
 #######################################
-BATCH_SIZE = 8
+BATCH_SIZE = 16
 NUM_EPOCHS = 100
 LR = 1e5  # learning rate
 BETA1 = 0.5
