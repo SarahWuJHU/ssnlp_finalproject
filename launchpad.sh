@@ -6,7 +6,7 @@
 #SBATCH --reservation=MIG
 #SBATCH --qos=qos_mig_class
 #SBATCH --gres=gpu:1
-#SBATCH --nodes=1
+#SBATCH --nodes=2
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=2:00:00
 #SBATCH --job-name="Final Project"
