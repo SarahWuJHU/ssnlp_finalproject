@@ -215,9 +215,9 @@ discriminator = BertForSequenceClassification.from_pretrained(
 #######################################
 ########### Model Training ############
 #######################################
-BATCH_SIZE = 32
+BATCH_SIZE = 8
 NUM_EPOCHS = 100
-LR = 1e4  # learning rate
+LR = 1e5  # learning rate
 BETA1 = 0.5
 NUM_TRAINING_POINTS = 1000
 SAVE_FILE = "epochs.mat"
