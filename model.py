@@ -289,9 +289,9 @@ for epoch in range(NUM_EPOCHS):
         fake = generator(input=(input_ids_fake, emotion_label), decoder_input_ids=input_ids_fake, attention_mask=input_ids_fake_mask)[
             "logits"].argmax(dim=-1)
         label.fill_(fake_label)
-        print(fake)
+
         # Classify all fake batch with D
-        output = discriminator(fake.detach()).view(-1)
+        output = discriminator(fake.detach())['logits'].view(-1)
         # Calculate D's loss on the all-fake batch
         errD_fake = criterion(F.softmax(output, dim=0), label)
         # Calculate the gradients for this batch, accumulated (summed) with previous gradients
@@ -326,8 +326,9 @@ for epoch in range(NUM_EPOCHS):
         ###########################
         input_reconstructor.zero_grad()
         y = input_reconstructor(input=(input_ids_fake, emotion_label),
-                                decoder_input_ids=input_ids_fake, attention_mask=input_ids_fake_mask, label=input_ids_fake)
-        errE = y['loss']
+                                decoder_input_ids=input_ids_fake, attention_mask=input_ids_fake_mask, labels=input_ids_fake)
+        print(y)
+        errE = y.loss
         errE.backward()
         # Update G
         optimizerE.step()
