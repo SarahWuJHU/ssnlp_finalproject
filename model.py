@@ -1,4 +1,4 @@
-#%%
+# %%
 import warnings
 from scipy.io import savemat
 from torch.utils.data import DataLoader
@@ -60,10 +60,12 @@ class TextAndEmotionEncoder(BertModel):
         outputs_base["last_hidden_state"] = output
         return outputs_base
 
-#%%
+# %%
 ##################################
 ######## Data Processing #########
 ##################################
+
+
 class EmotionPlainDataset(torch.utils.data.Dataset):
     """
     Dataset for the dataset of Emotions data set and plain text
@@ -179,7 +181,7 @@ train_dataset = EmotionPlainDataset(
     w2v_encoder=embeddings
 )
 train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE)
-#%%
+# %%
 #######################################
 ######## Model Initialization #########
 #######################################
@@ -209,7 +211,7 @@ generator = EncoderDecoderModel(
 # creating the discriminator
 discriminator = BertForSequenceClassification.from_pretrained(
     MODEL_NAME, num_labels=1).to(DEVICE)
-#%%
+# %%
 #######################################
 ########### Model Training ############
 #######################################
@@ -275,7 +277,7 @@ for epoch in range(NUM_EPOCHS):
         output = discriminator(
             input_ids_real, attention_mask=input_ids_real_mask)['logits'].view(-1)
         # Calculate loss on all-real batch
-        errD_real = criterion(F.softmax(output, dim = 0), label)
+        errD_real = criterion(F.softmax(output, dim=0), label)
         # Calculate gradients for D in backward pass
         errD_real.backward()
         D_x = output.mean().item()
@@ -345,6 +347,9 @@ for epoch in range(NUM_EPOCHS):
         G_losses.append(errG.item())
         D_losses.append(errD.item())
         E_losses.append(errE.item())
+    if epoch % 10 == 0:
+        savemat(SAVE_FILE, {'generator_loss': G_losses,
+                            'discriminator_loss': D_losses, 'reconstruction_loss': E_losses})
 
 savemat(SAVE_FILE, {'generator_loss': G_losses,
         'discriminator_loss': D_losses, 'reconstruction_loss': E_losses})
