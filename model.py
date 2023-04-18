@@ -169,8 +169,8 @@ embeddings = gensim.downloader.load('glove-twitter-50')
 
 # Creating DataLoader
 MAX_LEN = 128
-MODEL_NAME = 'distilbert-base-uncased'
-BATCH_SIZE = 4
+MODEL_NAME = 'bert-tiny'
+BATCH_SIZE = 32
 text_tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
 train_dataset = EmotionPlainDataset(
     plain_text=list(training_plain_sentence),
@@ -216,7 +216,7 @@ discriminator = BertForSequenceClassification.from_pretrained(
 ########### Model Training ############
 #######################################
 NUM_EPOCHS = 100
-LR = 1e5  # learning rate
+LR = 1e4  # learning rate
 BETA1 = 0.5
 NUM_TRAINING_POINTS = 1000
 SAVE_FILE = "epochs.mat"
