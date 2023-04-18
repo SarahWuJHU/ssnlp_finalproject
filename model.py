@@ -170,7 +170,7 @@ embeddings = gensim.downloader.load('glove-twitter-50')
 # Creating DataLoader
 MAX_LEN = 128
 MODEL_NAME = 'distilbert-base-uncased'
-BATCH_SIZE = 8
+BATCH_SIZE = 4
 text_tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
 train_dataset = EmotionPlainDataset(
     plain_text=list(training_plain_sentence),
@@ -187,7 +187,7 @@ train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE)
 #######################################
 NUM_EMOTIONS = 50  # dimension of emotions embedding
 HIDDEN_SIZE = 256  # size of hidden state
-NUM_LAYERS = 4  # number of layers
+NUM_LAYERS = 3  # number of layers
 DEVICE = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
 
 # constructing the encoder
