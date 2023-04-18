@@ -221,6 +221,7 @@ LR = 1e4  # learning rate
 BETA1 = 0.5
 NUM_TRAINING_POINTS = 1000
 SAVE_FILE = "epochs.mat"
+MODEL_FILE = "models/"
 
 criterion = nn.BCELoss()
 # Establish convention for real and fake labels during training
@@ -353,5 +354,7 @@ for epoch in range(NUM_EPOCHS):
 
 savemat(SAVE_FILE, {'generator_loss': G_losses,
         'discriminator_loss': D_losses, 'reconstruction_loss': E_losses})
-
+torch.save(generator, MODEL_FILE+"generator.pt")
+torch.save(discriminator, MODEL_FILE+"disciminator.pt")
+torch.save(input_reconstructor, MODEL_FILE+"input_reconstructor.pt")
 # %%
