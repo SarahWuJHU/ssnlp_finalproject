@@ -9,7 +9,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=2:00:00
-#SBATCH --job-name="HW6 CS 601.471/671 homework"
+#SBATCH --job-name="Final Project"
 
 module load anaconda
 #init virtual environment if needed
