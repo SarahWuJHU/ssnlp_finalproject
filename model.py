@@ -1,3 +1,4 @@
+#%%
 import warnings
 from scipy.io import savemat
 from torch.utils.data import DataLoader
@@ -55,11 +56,11 @@ class TextAndEmotionEncoder(BertModel):
         outputs_emotion = emotion_label
         for linear in self.linears:
             outputs_emotion = linear(outputs_emotion)
-        output = torch.cat((outputs_text, outputs_emotion[:, None, :]), dim=1)
+        output = outputs_text + outputs_emotion[:, None, :]
         outputs_base["last_hidden_state"] = output
         return outputs_base
 
-
+#%%
 ##################################
 ######## Data Processing #########
 ##################################
@@ -178,7 +179,7 @@ train_dataset = EmotionPlainDataset(
     w2v_encoder=embeddings
 )
 train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE)
-
+#%%
 #######################################
 ######## Model Initialization #########
 #######################################
@@ -208,7 +209,7 @@ generator = EncoderDecoderModel(
 # creating the discriminator
 discriminator = BertForSequenceClassification.from_pretrained(
     MODEL_NAME, num_labels=1).to(DEVICE)
-
+#%%
 #######################################
 ########### Model Training ############
 #######################################
@@ -283,14 +284,12 @@ for epoch in range(NUM_EPOCHS):
         # Generate batch of latent vectors
         input_ids_fake = data['plain_input_ids'].to(DEVICE)
         input_ids_fake_mask = data['plain_attention_mask'].to(DEVICE)
-        print(input_ids_fake_mask.shape)
-        input_ids_fake_mask = torch.concat((input_ids_fake_mask, torch.zeros((b_size, 1)).to(DEVICE)), dim=1)
-        print(input_ids_fake_mask.shape)
         emotion_label = data['labels'].to(DEVICE)
         # Generate fake image batch with G
         fake = generator(input=(input_ids_fake, emotion_label), decoder_input_ids=input_ids_fake, attention_mask=input_ids_fake_mask)[
             "logits"].argmax(dim=-1)
         label.fill_(fake_label)
+        print(fake)
         # Classify all fake batch with D
         output = discriminator(fake.detach()).view(-1)
         # Calculate D's loss on the all-fake batch
@@ -348,3 +347,5 @@ for epoch in range(NUM_EPOCHS):
 
 savemat(SAVE_FILE, {'generator_loss': G_losses,
         'discriminator_loss': D_losses, 'reconstruction_loss': E_losses})
+
+# %%
