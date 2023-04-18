@@ -169,7 +169,7 @@ embeddings = gensim.downloader.load('glove-twitter-50')
 
 # Creating DataLoader
 MAX_LEN = 128
-MODEL_NAME = 'bert-tiny'
+MODEL_NAME = 'prajjwal1/bert-mini'
 BATCH_SIZE = 32
 text_tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
 train_dataset = EmotionPlainDataset(
