@@ -2,7 +2,7 @@
 #SBATCH --reservation=MIG
 #SBATCH --qos=qos_mig_class
 #SBATCH -A cs601_gpu
-#SBATCH --partition=mig_class
+#SBATCH --partition=a100
 #SBATCH --reservation=MIG
 #SBATCH --qos=qos_mig_class
 #SBATCH --gres=gpu:1
