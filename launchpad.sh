@@ -1,15 +1,13 @@
 #!/bin/bash
-#SBATCH --reservation=MIG
 #SBATCH --qos=qos_gpu
-#SBATCH -A cs601_gpu
+#SBATCH -A danielk_gpu
 #SBATCH --partition=a100
-#SBATCH --reservation=MIG
-#SBATCH --qos=qos_mig_class
+#SBATCH --qos=qos_gpu
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=2:00:00
-#SBATCH --job-name="Final Project"
+#SBATCH --job-name="swu82 Final Project"
 
 module load anaconda
 #init virtual environment if needed
