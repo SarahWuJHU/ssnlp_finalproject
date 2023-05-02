@@ -5,7 +5,7 @@
 #SBATCH --qos=qos_gpu
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
+#SBATCH --ntasks-per-node=2
 #SBATCH --time=2:00:00
 #SBATCH --job-name="swu82 Final Project"
 
