@@ -27,8 +27,6 @@ warnings.filterwarnings("ignore")
 ###################################
 ######## Customized Model #########
 ###################################
-
-
 class TextAndEmotionEncoder(BertModel):
     def __init__(self,
                  base_encoder: BertGenerationEncoder,
@@ -59,12 +57,11 @@ class TextAndEmotionEncoder(BertModel):
         output = outputs_text + outputs_emotion[:, None, :]
         outputs_base["last_hidden_state"] = output
         return outputs_base
-
+    
 # %%
 ##################################
 ######## Data Processing #########
 ##################################
-
 
 class EmotionPlainDataset(torch.utils.data.Dataset):
     """
@@ -168,9 +165,9 @@ training_emo_label = emo_data['train']['context'][:len(
 embeddings = gensim.downloader.load('glove-twitter-50')
 
 # Creating DataLoader
-MAX_LEN = 192
-MODEL_NAME = 'prajjwal1/bert-small'
-BATCH_SIZE = 4
+MAX_LEN = 32
+MODEL_NAME = 'bert-base-uncased'
+BATCH_SIZE = 16
 text_tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
 train_dataset = EmotionPlainDataset(
     plain_text=list(training_plain_sentence),
@@ -186,7 +183,7 @@ train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE)
 ######## Model Initialization #########
 #######################################
 NUM_EMOTIONS = 50  # dimension of emotions embedding
-HIDDEN_SIZE = 128  # size of hidden state
+HIDDEN_SIZE = 64  # size of hidden state
 NUM_LAYERS = 3  # number of layers
 DEVICE = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
 
@@ -210,13 +207,13 @@ generator = EncoderDecoderModel(
     encoder=encoder, decoder=base_decoder_2).to(DEVICE)
 # creating the discriminator
 discriminator = BertForSequenceClassification.from_pretrained(
-    MODEL_NAME, num_labels=1).to(DEVICE)
+    MODEL_NAME, num_labels=2).to(DEVICE)
 # %%
 #######################################
 ########### Model Training ############
 #######################################
-NUM_EPOCHS = 100
-LR = 1e5  # learning rate
+NUM_EPOCHS = 20
+LR = 1e-5  # learning rate
 BETA1 = 0.5
 NUM_TRAINING_POINTS = 1000
 SAVE_FILE = "epochs.mat"
@@ -231,7 +228,7 @@ optimizerD = optim.Adam(discriminator.parameters(),
                         lr=LR, betas=(BETA1, 0.999))
 optimizerE = optim.Adam(input_reconstructor.parameters(),
                         lr=LR, betas=(BETA1, 0.999))
-optimizerG = optim.Adam(generator.parameters(), lr=LR, betas=(BETA1, 0.999))
+optimizerG = optim.Adam(generator.parameters(), lr=LR*100, betas=(BETA1, 0.999))
 # Learning rate scheduler
 lr_scheduler_D = get_scheduler(
     "linear",
@@ -271,16 +268,17 @@ for epoch in range(NUM_EPOCHS):
         input_ids_real = data['emotion_input_ids'].to(DEVICE)
         input_ids_real_mask = data['emotion_attention_mask'].to(DEVICE)
         b_size = input_ids_real.size(0)
-        label = torch.full((b_size,), real_label,
+        label = torch.full((b_size,2), real_label,
                            dtype=torch.float, device=DEVICE)
+        label[:, 1] = fake_label
         # Forward pass real batch through D
         output = discriminator(
-            input_ids_real, attention_mask=input_ids_real_mask)['logits'].view(-1)
+            input_ids_real, attention_mask=input_ids_real_mask, labels=label)
         # Calculate loss on all-real batch
-        errD_real = criterion(F.softmax(output, dim=0), label)
+        errD_real = output.loss
         # Calculate gradients for D in backward pass
         errD_real.backward()
-        D_x = output.mean().item()
+        D_x = output.loss.mean().item()
 
         # Train with all-fake batch
         # Generate batch of latent vectors
@@ -291,14 +289,14 @@ for epoch in range(NUM_EPOCHS):
         fake = generator(input=(input_ids_fake, emotion_label), decoder_input_ids=input_ids_fake, attention_mask=input_ids_fake_mask)[
             "logits"].argmax(dim=-1)
         label.fill_(fake_label)
-
+        label[:, 1] = real_label
         # Classify all fake batch with D
-        output = discriminator(fake.detach())['logits'].view(-1)
+        output = discriminator(fake.detach(), attention_mask=input_ids_fake_mask, labels=label)
         # Calculate D's loss on the all-fake batch
-        errD_fake = criterion(F.softmax(output, dim=0), label)
+        errD_fake = output.loss
         # Calculate the gradients for this batch, accumulated (summed) with previous gradients
         errD_fake.backward()
-        D_G_z1 = output.mean().item()
+        D_G_z1 = output.loss.mean().item()
         # Compute error of D as sum over the fake and the real batches
         errD = errD_real + errD_fake
         # Update D
@@ -311,13 +309,14 @@ for epoch in range(NUM_EPOCHS):
         ###########################
         generator.zero_grad()
         label.fill_(real_label)  # fake labels are real for generator cost
+        label[:, 1] = fake_label
         # Since we just updated D, perform another forward pass of all-fake batch through D
-        output = discriminator(fake)['logits'].view(-1)
+        output = discriminator(fake.detach(), attention_mask=input_ids_fake_mask, labels=label)
         # Calculate G's loss based on this output
-        errG = criterion(F.softmax(output, dim=0), label)
+        errG = output.loss *10
         # Calculate gradients for G
         errG.backward()
-        D_G_z2 = output.mean().item()
+        D_G_z2 = output.loss.mean().item()
         # Update G
         optimizerG.step()
         lr_scheduler_D.step()
@@ -329,7 +328,6 @@ for epoch in range(NUM_EPOCHS):
         input_reconstructor.zero_grad()
         y = input_reconstructor(input=(input_ids_fake, emotion_label),
                                 decoder_input_ids=input_ids_fake, attention_mask=input_ids_fake_mask, labels=input_ids_fake)
-        print(y)
         errE = y.loss
         errE.backward()
         # Update G
@@ -350,9 +348,6 @@ for epoch in range(NUM_EPOCHS):
     if epoch % 10 == 0:
         savemat(SAVE_FILE, {'generator_loss': G_losses,
                             'discriminator_loss': D_losses, 'reconstruction_loss': E_losses})
-
-savemat(SAVE_FILE, {'generator_loss': G_losses,
-        'discriminator_loss': D_losses, 'reconstruction_loss': E_losses})
 torch.save(generator, MODEL_FILE+"generator.pt")
 torch.save(discriminator, MODEL_FILE+"disciminator.pt")
 torch.save(input_reconstructor, MODEL_FILE+"input_reconstructor.pt")
