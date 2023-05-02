@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --reservation=MIG
-#SBATCH --qos=qos_mig_class
+#SBATCH --qos=qos_gpu
 #SBATCH -A cs601_gpu
 #SBATCH --partition=a100
 #SBATCH --reservation=MIG
