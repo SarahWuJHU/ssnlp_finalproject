@@ -1,5 +1,7 @@
 # %%
 import warnings
+import datetime
+import os
 from scipy.io import savemat
 from torch.utils.data import DataLoader
 from transformers import EncoderDecoderModel
@@ -27,6 +29,8 @@ warnings.filterwarnings("ignore")
 ###################################
 ######## Customized Model #########
 ###################################
+
+
 class TextAndEmotionEncoder(BertModel):
     def __init__(self,
                  base_encoder: BertGenerationEncoder,
@@ -57,11 +61,12 @@ class TextAndEmotionEncoder(BertModel):
         output = outputs_text + outputs_emotion[:, None, :]
         outputs_base["last_hidden_state"] = output
         return outputs_base
-    
+
 # %%
 ##################################
 ######## Data Processing #########
 ##################################
+
 
 class EmotionPlainDataset(torch.utils.data.Dataset):
     """
@@ -214,10 +219,18 @@ discriminator = BertForSequenceClassification.from_pretrained(
 #######################################
 NUM_EPOCHS = 20
 LR = 1e-5  # learning rate
+GENERATOR_LR = 0.1
 BETA1 = 0.5
+TIME_STAMP = datetime.now().strftime("_%m_%d_%Y__%H_%M")
 NUM_TRAINING_POINTS = 1000
-SAVE_FILE = "epochs.mat"
-MODEL_FILE = "models/"
+SAVE_FILE = 'trial_' + TIME_STAMP + "/epochs.mat"
+MODEL_FILE = 'trial_' + TIME_STAMP + "/models/"
+
+if(not os.path.exists('trial_'+TIME_STAMP)):
+    os.mkdir('trial_'+TIME_STAMP)  # Create cross validation folder f.
+if(not os.path.exists('trial_' + TIME_STAMP + "/models")):
+    # Create cross validation folder f.
+    os.mkdir('trial_' + TIME_STAMP + "/models")
 
 criterion = nn.BCELoss()
 # Establish convention for real and fake labels during training
@@ -228,7 +241,8 @@ optimizerD = optim.Adam(discriminator.parameters(),
                         lr=LR, betas=(BETA1, 0.999))
 optimizerE = optim.Adam(input_reconstructor.parameters(),
                         lr=LR, betas=(BETA1, 0.999))
-optimizerG = optim.Adam(generator.parameters(), lr=LR*100, betas=(BETA1, 0.999))
+optimizerG = optim.Adam(generator.parameters(),
+                        lr=GENERATOR_LR, betas=(BETA1, 0.999))
 # Learning rate scheduler
 lr_scheduler_D = get_scheduler(
     "linear",
@@ -268,7 +282,7 @@ for epoch in range(NUM_EPOCHS):
         input_ids_real = data['emotion_input_ids'].to(DEVICE)
         input_ids_real_mask = data['emotion_attention_mask'].to(DEVICE)
         b_size = input_ids_real.size(0)
-        label = torch.full((b_size,2), real_label,
+        label = torch.full((b_size, 2), real_label,
                            dtype=torch.float, device=DEVICE)
         label[:, 1] = fake_label
         # Forward pass real batch through D
@@ -291,7 +305,8 @@ for epoch in range(NUM_EPOCHS):
         label.fill_(fake_label)
         label[:, 1] = real_label
         # Classify all fake batch with D
-        output = discriminator(fake.detach(), attention_mask=input_ids_fake_mask, labels=label)
+        output = discriminator(
+            fake.detach(), attention_mask=input_ids_fake_mask, labels=label)
         # Calculate D's loss on the all-fake batch
         errD_fake = output.loss
         # Calculate the gradients for this batch, accumulated (summed) with previous gradients
@@ -311,9 +326,10 @@ for epoch in range(NUM_EPOCHS):
         label.fill_(real_label)  # fake labels are real for generator cost
         label[:, 1] = fake_label
         # Since we just updated D, perform another forward pass of all-fake batch through D
-        output = discriminator(fake.detach(), attention_mask=input_ids_fake_mask, labels=label)
+        output = discriminator(
+            fake.detach(), attention_mask=input_ids_fake_mask, labels=label)
         # Calculate G's loss based on this output
-        errG = output.loss *10
+        errG = output.loss * 10
         # Calculate gradients for G
         errG.backward()
         D_G_z2 = output.loss.mean().item()
