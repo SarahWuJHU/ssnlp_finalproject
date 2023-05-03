@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --qos=qos_gpu
-#SBATCH -A danielk_gpu
-#SBATCH --partition=a100
+#SBATCH -A danielk80_gpu 
+#SBATCH --partition=ica100
 #SBATCH --qos=qos_gpu
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
