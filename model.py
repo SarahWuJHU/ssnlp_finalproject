@@ -1,6 +1,6 @@
 # %%
 import warnings
-import datetime
+from datetime import datetime
 import os
 from scipy.io import savemat
 from torch.utils.data import DataLoader
