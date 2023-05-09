@@ -98,7 +98,7 @@ discriminator = BertForSequenceClassification.from_pretrained(
 #######################################
 ########### Model Training ############
 #######################################
-NUM_EPOCHS = 10
+NUM_EPOCHS = 1000
 LR = 1e-3  # learning rate
 BETA1 = 0.5
 TIME_STAMP = datetime.now().strftime("_%m_%d_%Y__%H_%M")
