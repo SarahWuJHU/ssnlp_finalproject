@@ -23,3 +23,4 @@ title("Reconstruction loss")
 hold off
 
 %%
+plot(discriminator_loss(3000:4000))

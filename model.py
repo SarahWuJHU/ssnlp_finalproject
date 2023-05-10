@@ -133,34 +133,31 @@ class EmotionPlainDataset(torch.utils.data.Dataset):
 DATA_SET = ""
 EXCLUDED_SECTIONS = ['See also', 'References',
                      'Further reading', 'External links']
-ARTICLE_TITLES = ['Self-supervised learning', 'Natural language processing',
-                  'Deep learning', 'Machine translation',
-                  'Image segmentation', 'Natural language generation', 'Artificial intelligence',
-                  'Artificial general intelligence', 'Bayesian inference',
-                  'Data analysis', 'Data modeling', 'Information system']
-EXCLUDED_SECTIONS = ['See also', 'References',
-                     'Further reading', 'External links']
+ARTICLE_TITLES = wikipedia.search('machine learning', results=800)
 MARKDOWN_PATTERN = re.compile(r'(\'{2,5})(.*?)\1')
+
 cleaned_articles = []
 wikipedia.set_lang("en")
 training_plain_sentence = []
 for article_title in ARTICLE_TITLES:
-    # Get the raw text of the Wikipedia article
-    raw_article = wikipedia.page(article_title).content
-    # Remove any markdown from the article text
-    cleaned_article = re.sub(MARKDOWN_PATTERN, r'\2', raw_article)
-    # Split the article text into sections
-    sections = cleaned_article.split('\n==')
+    try:
+      # Get the raw text of the Wikipedia article
+      raw_article = wikipedia.page(article_title).content
+      # Remove any markdown from the article text
+      cleaned_article = re.sub(MARKDOWN_PATTERN, r'\2', raw_article)
+      # Split the article text into sections
+      sections = cleaned_article.split('\n==')
 
-    # Loop over each section and exclude any sections in the excluded_sections list
-    cleaned_sections = []
-    for section in sections:
-        if not any(section.startswith(f"\n{es}\n") for es in EXCLUDED_SECTIONS):
-            # Tokenize the section into sentences using nltk
-            sentences = nltk.sent_tokenize(section)
-            # Append the cleaned sentences to the cleaned_sections list
-            training_plain_sentence.extend(sentences)
-
+      # Loop over each section and exclude any sections in the excluded_sections list
+      cleaned_sections = []
+      for section in sections:
+          if not any(section.startswith(f"\n{es}\n") for es in EXCLUDED_SECTIONS):
+              # Tokenize the section into sentences using nltk
+              sentences = nltk.sent_tokenize(section)
+              # Append the cleaned sentences to the cleaned_sections list
+              training_plain_sentence.extend(sentences)
+    except:
+      print(article_title, 'invalid')
 # Load the EmpatheticDialogues dataset
 emo_data = load_dataset('empathetic_dialogues')
 training_emo_sentence = emo_data['train']['utterance'][:len(
@@ -322,35 +319,86 @@ for epoch in range(NUM_EPOCHS):
         ############################
         # (2) Update G network: maximize log(D(G(z)))
         ###########################
+        G_losses = []
+D_losses = []
+E_losses = []
+
+print("Starting Training Loop...")
+# For each epoch
+for epoch in range(NUM_EPOCHS):
+    # For each batch in the dataloader
+    for i, data in enumerate(train_dataloader, 0):
+
+        ############################
+        # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
+        ###########################
+        # Train with all-real batch
+        discriminator.zero_grad()
+        # Format batch
+        input_ids_real = data['emotion_input_ids'].to(DEVICE)
+        input_ids_real_mask = data['emotion_attention_mask'].to(DEVICE)
+        b_size = input_ids_real.size(0)
+        label = torch.full((b_size,2), real_label,
+                           dtype=torch.float, device=DEVICE)
+        label[:, 1] = fake_label
+        # Forward pass real batch through D
+        output = discriminator(
+            input_ids_real, attention_mask=input_ids_real_mask, labels=label)
+        # Calculate loss on all-real batch
+        errD_real = output.loss
+        # Calculate gradients for D in backward pass
+        errD_real.backward()
+        D_x = output.loss.mean().item()
+
+        # Train with all-fake batch
+        # Generate batch of latent vectors
+        input_ids_fake = data['plain_input_ids'].to(DEVICE)
+        input_ids_fake_mask = data['plain_attention_mask'].to(DEVICE)
+        emotion_label = data['labels'].to(DEVICE)
+        # Generate fake image batch with G
+        fake = generator(input=(input_ids_fake, emotion_label), decoder_input_ids=input_ids_fake, attention_mask=input_ids_fake_mask)[
+            "logits"].argmax(dim=-1)
+        label.fill_(fake_label)
+        label[:, 1] = real_label
+        # Classify all fake batch with D
+        output = discriminator(fake.detach(), attention_mask=input_ids_fake_mask, labels=label)
+        # Calculate D's loss on the all-fake batch
+        errD_fake = output.loss
+        # Calculate the gradients for this batch, accumulated (summed) with previous gradients
+        errD_fake.backward()
+        D_G_z1 = output.loss.mean().item()
+        # Compute error of D as sum over the fake and the real batches
+        errD = errD_real + errD_fake
+        # Update D
+        optimizerD.step()
+        lr_scheduler_D.step()
+        optimizerD.zero_grad()
+
+        ############################
+        # (2) Update G network: maximize log(D(G(z)))
+        ###########################
         generator.zero_grad()
         label.fill_(real_label)  # fake labels are real for generator cost
         label[:, 1] = fake_label
         # Since we just updated D, perform another forward pass of all-fake batch through D
-        output = discriminator(
-            fake.detach(), attention_mask=input_ids_fake_mask, labels=label)
+        output = discriminator(fake.detach(), attention_mask=input_ids_fake_mask, labels=label)
+        # 
+        y = input_reconstructor(input=(input_ids_fake, emotion_label),
+                                decoder_input_ids=input_ids_fake, attention_mask=input_ids_fake_mask, labels=input_ids_fake)
+        
         # Calculate G's loss based on this output
-        errG = output.loss * 10
+        errG = output.loss *10 + y.loss*1e-1
+        errE = y.loss*1e-1
         # Calculate gradients for G
         errG.backward()
         D_G_z2 = output.loss.mean().item()
         # Update G
         optimizerG.step()
-        lr_scheduler_D.step()
-        optimizerD.zero_grad()
-
-        ############################
-        # (3) Regulate network: minimize reconstruction loss
-        ###########################
-        input_reconstructor.zero_grad()
-        y = input_reconstructor(input=(input_ids_fake, emotion_label),
-                                decoder_input_ids=input_ids_fake, attention_mask=input_ids_fake_mask, labels=input_ids_fake)
-        errE = y.loss
-        errE.backward()
-        # Update G
         optimizerE.step()
+        lr_scheduler_D.step()
         lr_scheduler_E.step()
+        optimizerD.zero_grad()
         optimizerE.zero_grad()
-
         # Output training stats
         if i % 50 == 0:
             print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\t Loss_R: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
