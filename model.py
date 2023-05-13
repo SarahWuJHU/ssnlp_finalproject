@@ -133,7 +133,7 @@ class EmotionPlainDataset(torch.utils.data.Dataset):
 DATA_SET = ""
 EXCLUDED_SECTIONS = ['See also', 'References',
                      'Further reading', 'External links']
-ARTICLE_TITLES = wikipedia.search('machine learning', results=800)
+ARTICLE_TITLES = wikipedia.search('movie', results=800)
 MARKDOWN_PATTERN = re.compile(r'(\'{2,5})(.*?)\1')
 
 cleaned_articles = []
@@ -333,7 +333,7 @@ for epoch in range(NUM_EPOCHS):
         # Update G
         optimizerG.step()
         lr_scheduler_D.step()
-        optimizerD.zero_grad()
+        optimizerD.zero_grad() 
 
         ############################
         # (3) Regulate network: minimize reconstruction loss

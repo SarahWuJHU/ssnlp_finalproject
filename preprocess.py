@@ -4,6 +4,11 @@ import nltk
 import json
 nltk.download('punkt')
 
+# dont mnually run this
+#  if i choose a topic - related to machine learning,
+#  if i choose a topic , get me all the articles that are related to that topic
+#  get around 37k  articles
+#  brute force it to make machine learning 
 
 def process_remove_metadata():
     # Set the language to English
@@ -111,3 +116,5 @@ def process_emotional():
     # Print the tokenized sentences with their emotional labels
     for sentence, label in sentences:
         print(f"{label}: {sentence}")
+        
+    
