@@ -214,9 +214,9 @@ discriminator = BertForSequenceClassification.from_pretrained(
 #######################################
 ########### Model Training ############
 #######################################
-NUM_EPOCHS = 20
-LR = 1e-5  # learning rate
-GENERATOR_LR = 0.1
+NUM_EPOCHS = 30
+LR = 1e-6  # learning rate
+GENERATOR_LR = 0.2
 BETA1 = 0.5
 TIME_STAMP = datetime.now().strftime("_%m_%d_%Y__%H_%M")
 NUM_TRAINING_POINTS = 1000
